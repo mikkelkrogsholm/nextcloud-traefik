@@ -1,0 +1,85 @@
+services:
+
+# Traefik is a reverse proxy that will allow us to access our services by subdomain
+  traefik:
+    restart: always
+    container_name: traefik
+    image: traefik:v3.2.3
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "letsencrypt:/letsencrypt"
+    environment:
+      - LETSENCRYPT_EMAIL=${ACME_EMAIL}
+    labels:
+      - traefik.enable=true
+
+  db:
+    image: mariadb:10.6
+    restart: always
+    command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
+    volumes:
+      - db:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+
+  nextcloud:
+    image: nextcloud
+    container_name: nextcloud
+    restart: always
+    links:
+      - db
+    volumes:
+      - nextcloud:/var/www/html
+    environment:
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_HOST=db
+      - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER}
+      - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD}
+      - NEXTCLOUD_TRUSTED_DOMAINS=${NEXTCLOUD_DOMAIN}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.nextcloud.rule=Host(`${NEXTCLOUD_DOMAIN}`)
+      - traefik.http.routers.nextcloud.entrypoints=web,websecure
+      - traefik.http.routers.nextcloud.tls=true
+      - traefik.http.routers.nextcloud.tls.certresolver=letsencrypt
+      - traefik.http.services.nextcloud.loadbalancer.server.port=${NEXTCLOUD_PORT}
+      # Security headers
+      - "traefik.http.middlewares.nextcloud-headers.headers.customFrameOptionsValue=SAMEORIGIN"
+      - "traefik.http.middlewares.nextcloud-headers.headers.stsSeconds=15552000"
+      - "traefik.http.middlewares.nextcloud-headers.headers.forceSTSHeader=true"
+      - "traefik.http.middlewares.nextcloud-headers.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.nextcloud-headers.headers.stsPreload=true"
+      # Additional Nextcloud specific configurations
+      - "traefik.http.middlewares.nextcloud-redirectregex.redirectregex.permanent=true"
+      - "traefik.http.middlewares.nextcloud-redirectregex.redirectregex.regex=https://(.*)/.well-known/(card|cal)dav"
+      - "traefik.http.middlewares.nextcloud-redirectregex.redirectregex.replacement=https://$${1}/remote.php/dav/"
+      # Chain the middlewares
+      - "traefik.http.routers.nextcloud.middlewares=nextcloud-headers,nextcloud-redirectregex"
+      # Add secure headers
+      - "traefik.http.middlewares.nextcloud-headers.headers.sslRedirect=true"
+      - "traefik.http.middlewares.nextcloud-headers.headers.browserXssFilter=true"
+      - "traefik.http.middlewares.nextcloud-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.nextcloud-headers.headers.referrerPolicy=no-referrer"
+
+volumes:
+  nextcloud:
+  db:
+  letsencrypt:
