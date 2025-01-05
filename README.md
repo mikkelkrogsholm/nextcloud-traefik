@@ -4,7 +4,14 @@ This repository contains the Docker Compose configuration for running Nextcloud 
 
 ## Setup Instructions
 
-1. Clone this repository
+1. Clone this repository:
+   ```bash
+   # Using HTTPS
+   git clone https://github.com/mikkelkrogsholm/nextcloud-traefik.git
+   # Or using SSH
+   git clone git@github.com:mikkelkrogsholm/nextcloud-traefik.git
+   ```
+
 2. Copy the example environment file:
    ```bash
    cp .env.example .env
