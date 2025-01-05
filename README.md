@@ -2,6 +2,27 @@
 
 This repository contains the Docker Compose configuration for running Nextcloud behind a Traefik reverse proxy.
 
+## Setup Instructions
+
+1. Clone this repository
+2. Copy the example environment file:
+   ```bash
+   cp .env.example .env
+   ```
+3. Edit the `.env` file with your specific values:
+   - `ACME_EMAIL`: Your email for Let's Encrypt certificates
+   - `MYSQL_ROOT_PASSWORD`: A secure password for MySQL root user
+   - `MYSQL_PASSWORD`: A secure password for the Nextcloud database user
+   - `NEXTCLOUD_ADMIN_USER`: Your desired Nextcloud admin username
+   - `NEXTCLOUD_ADMIN_PASSWORD`: A secure password for the Nextcloud admin
+   - `NEXTCLOUD_DOMAIN`: Your domain name (e.g., nextcloud.example.com)
+   - `NEXTCLOUD_PORT`: The port Nextcloud runs on (usually 80)
+
+4. Start the services:
+   ```bash
+   docker compose up -d
+   ```
+
 ## Important Configuration Steps
 
 ### Fixing Login Hang Issue
